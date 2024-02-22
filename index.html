@@ -1,0 +1,447 @@
+<!doctype html>
+<!--
+Copyright 2023 Foster Electric Co., Ltd.
+Released under the MIT license
+-->
+<html>
+  <style>
+    .flex {
+        display: -webkit-flex;
+        display: -moz-flex;
+        display: -ms-flex;
+        display: -o-flex;
+        display: flex;
+        gap: 6px 6px;
+    }    
+  </style>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="description" content="Foster Hearable">
+    <meta name="viewport" content="width=640, maximum-scale=1.0, user-scalable=yes">
+    <title>Foster Hearable</title>
+    <link rel="stylesheet" href="./components/simple.css"> 
+  </head>
+<body>
+<div class="container">
+    <h1>Foster Hearable</h1>
+    <p>Eartip Fitting</p>
+
+    <div class="flex" >
+        <div id="canvas_res" class="flex">
+            <canvas id="canvas_1" width="100px" height="350px"></canvas>
+            <canvas id="canvas_2" width="500px" height="350px"></canvas>
+        </div>
+        <div class="flexcol">
+            <canvas id="canvas_3A" width="200px" height="110px" style="border: 1px solid;"></canvas>
+            <canvas id="canvas_3B" width="200px" height="110px" style="border: 1px solid;"></canvas>
+            <canvas id="canvas_3C" width="200px" height="110px" style="border: 1px solid;"></canvas>    
+        </div>
+    </div>
+    <br/>
+    <div class="flex" >
+        <button id="startNotifications" class="button">Start Notify</button>
+        <button id="stopNotifications" class="button">Stop Notify</button>
+        <button id="MultiFunctionButton" class="button">Evaluate</button>
+    </div>
+    <br/>
+    <div class="flex" >
+        <label>WebSocket URL : <input type="text" id="ws_url" size="40" value="ws://127.0.0.1:6301"></label>
+        <button id="WebSocket" class="button">Connect</button>    
+    </div>
+    <div class="code"><pre>
+    <span id="device_name"> </span>
+    <span id="uuid_name"> </span>
+    <span id="status"> </span></pre>
+    </div>
+    <hr>
+    <div class="footer">
+        For more information, see <a href="https://github.com/foster-hearable/PPGFrontend" target="_blank">GitHub</a> !
+    </div>
+</div>
+
+    
+<script type="text/javascript" src="./components/bluejelly.js"></script>
+<script>
+class thumb_img {
+    id;
+    ctx;
+    imageElem;
+    data;
+
+    constructor(id) {
+        this.id = id
+        this.ctx = document.getElementById(id).getContext('2d');
+
+        this.imageElem = new Image();
+        this.imageElem.src = './components/imageA.png'
+        this.imageElem.onload = () => {
+            this.ctx.drawImage(this.imageElem, 0, 5, 200, 100);
+        }
+        this.data = []
+        
+        document.getElementById(id).onclick = () =>{
+            //console.log(this.data)
+            chartId_2.data.datasets[0].data = this.data.slice()
+            gPause = true
+        }
+    }
+
+    copy(src) {
+        this.ctx.clearRect(0,0,200,100)
+        this.data = src.data.slice()
+        this.imageElem.src = document.getElementById(src.id).toDataURL()
+    }
+    capture() {
+        this.ctx.clearRect(0,0,200,100)
+
+        var context_res = document.createElement('canvas').getContext('2d')
+        var image1 = new Image()
+        var image2 = new Image()
+        image1.src= document.getElementById("canvas_1").toDataURL()
+        image2.src= document.getElementById("canvas_2").toDataURL()
+
+        image1.onload = () => {
+            context_res.drawImage(image1, 20, 0,  50, 150);
+            this.imageElem.src = context_res.canvas.toDataURL()
+        };
+        image2.onload = () => {
+            context_res.drawImage(image2, 70, 0, 200, 150);
+            this.imageElem.src = context_res.canvas.toDataURL()
+        };
+        this.data = chartId_2.data.datasets[0].data.slice()
+    }
+}
+</script>
+<script>
+    //--------------------------------------------------
+    //Globals
+    //--------------------------------------------------
+    gPPG = []
+    gStatus   = 0
+    var flgStatus = {
+        'WEAR'  : 1<<0,
+        'TOUCH' : 1<<1,
+        'OPENED': 1<<7,
+    }
+    gPause = false
+    
+    thumbA = new thumb_img('canvas_3A')
+    thumbB = new thumb_img('canvas_3B')
+    thumbC = new thumb_img('canvas_3C')
+
+    testSound = new Audio('./components/eartip_testtone.wav');
+    testSound.volume = 1.0
+    testSound.addEventListener(
+        "ended",
+        () => {
+            thumbC.copy(thumbB)
+            thumbB.copy(thumbA)
+            thumbA.capture()
+
+            document.getElementById("MultiFunctionButton").disabled  = false;
+        },
+        false,
+    );
+
+    eartip_fitting_evaluate = function() {
+        document.getElementById("MultiFunctionButton").disabled  = true;
+        chartId_2.data.datasets[0].data = []
+        gPause = false
+
+        testSound.play()
+    }
+</script>
+<script>
+    //--------------------------------------------------
+    //Web Bluetooth Wrappers
+    //--------------------------------------------------
+    const ble = new BlueJelly(namePrefix="LE-RN");
+
+    //--------------------------------------------------
+    ble.onScan = function (deviceName) {
+        console.log('onScan() : ' + deviceName)
+        document.getElementById('device_name').innerHTML = deviceName;
+        document.getElementById('status').innerHTML = "found device!";
+
+        gStatus |= flgStatus.OPENED
+    }
+
+    //--------------------------------------------------
+    ble.onConnectGATT = function (uuid) {
+        console.log('> connected GATT!');
+
+        document.getElementById('uuid_name').innerHTML = uuid;
+        document.getElementById('status').innerHTML = "connected GATT!";
+    }
+
+    //--------------------------------------------------
+    ble.onRead = function (data, uuid){
+        var length = data.byteLength;
+        var d = []
+        for (var i=0; i<length; i++){
+            d.push(data.getUint8(i))
+        }
+        //console.log(d)
+
+        document.getElementById('uuid_name').innerHTML = uuid;
+        document.getElementById('status').innerHTML = length + "Bytes received"
+
+        if (uuid == 'PPG') {
+            for (var i=3; i<d.length; i+=2){
+                var tmp = d[i] + d[i+1]*0x100
+                if (tmp > 32768) {
+                    tmp -= 65536
+                }
+                gPPG.push(tmp)
+            }
+            //console.log(gPPGPeak)
+        }
+    }
+
+    //--------------------------------------------------
+    ble.onWrite = function(uuid){
+        console.log('> onWrite! ' + uuid);
+        if (uuid == 'PPGFORMAT') {
+            ble.write('ROLLSWAP',  [0x00])
+            ble.write('DORMANT',   [0x00])
+            ble.startNotify('PPG');
+        }
+    }
+
+    //--------------------------------------------------
+    ble.onStartNotify = function(uuid){
+        console.log('> Start Notify! ' + uuid);
+
+        document.getElementById('uuid_name').innerHTML = uuid;
+        document.getElementById('status').innerHTML = "started Notify";
+
+        document.getElementById("startNotifications").disabled = true;
+        document.getElementById("stopNotifications").disabled  = false;
+    }
+
+    //--------------------------------------------------
+    ble.onStopNotify = function(uuid){
+        console.log('> Stop Notify!');
+        gStatus = 0
+
+        document.getElementById('uuid_name').innerHTML = uuid;
+        document.getElementById('status').innerHTML = "stopped Notify";
+
+        document.getElementById("startNotifications").disabled = true;
+        document.getElementById("stopNotifications").disabled  = true;
+    }
+
+    //-------------------------------------------------
+    robin_init = function() {
+        Object.defineProperty(document, 'ROBIN2_PPG_SERVICE', {value: "41002100-0000-1000-8000-00805f9b0230", writable: false});
+        Object.defineProperty(document, 'ROBIN2_PPG',         {value: "41002101-0000-1000-8000-00805f9b0230", writable: false});
+        Object.defineProperty(document, 'ROBIN2_PPGFORMAT',   {value: "41002102-0000-1000-8000-00805f9b0230", writable: false});
+        Object.defineProperty(document, 'ROBIN2_COMMON_SERVICE',  {value: "41001000-0000-1000-8000-00805f9b0230", writable: false});
+        Object.defineProperty(document, 'ROBIN2_COMMON_GETBDA',   {value: "41001002-0000-1000-8000-00805f9b0230", writable: false});
+        Object.defineProperty(document, 'ROBIN2_COMMON_DORMANT',  {value: "41001010-0000-1000-8000-00805f9b0230", writable: false});
+        Object.defineProperty(document, 'ROBIN2_COMMON_ROLLSWAP', {value: "41001030-0000-1000-8000-00805f9b0230", writable: false});
+
+        //UUIDの設定
+        ble.setUUID("PPG", document.ROBIN2_PPG_SERVICE, document.ROBIN2_PPG);
+        ble.setUUID("PPGFORMAT", document.ROBIN2_PPG_SERVICE, document.ROBIN2_PPGFORMAT);
+        ble.setUUID("ROLLSWAP",  document.ROBIN2_COMMON_SERVICE, document.ROBIN2_COMMON_ROLLSWAP);
+        ble.setUUID("DORMANT",   document.ROBIN2_COMMON_SERVICE, document.ROBIN2_COMMON_DORMANT);
+        ble.setUUID("GETBDA",    document.ROBIN2_COMMON_SERVICE, document.ROBIN2_COMMON_GETBDA);
+    }
+
+    robin_open = function() {
+        ble.write('PPGFORMAT', [0x00])
+    }
+
+    robin_close = function() {
+        ble.stopNotify('PPG');
+        ble.stopNotify('HEARTRATE');
+        document.getElementById('MultiFunctionButton').textContent = "Reload"
+    }
+
+    robin_mfb = function () {
+        if (document.getElementById('MultiFunctionButton').textContent == "Reload") {
+            location.reload()            
+        } else {
+            eartip_fitting_evaluate()
+        }
+    }
+</script>
+
+
+<script>
+    //--------------------------------------------------
+    //WebSocket
+    //--------------------------------------------------
+    let wsurl_element = document.getElementById('ws_url');
+    let sock = null
+
+    ws_refresh = function() {
+        if (wsurl_element.disabled) {
+            console.log('WebSocket: Close.');        
+            sock.close()
+        } else {
+            console.log('WebSocket: Reconnect.');        
+            sock = new WebSocket(wsurl_element.value);
+
+            sock.addEventListener('open',function(e){
+                console.log('WebSocket: Connected.');
+                document.getElementById('WebSocket').textContent = "Disconnect"
+                wsurl_element.disabled = true
+
+                window.setInterval(function(){
+                    if ((gStatus & flgStatus.OPENED) && (wsurl_element.disabled)) {
+                        if (gPPG.length > 0) {
+                            //console.log(gPPG.length)
+                            sock.send(gPPG);
+                            gPPG = []
+                        }
+                    }
+                }, 1000);
+            });
+            sock.onclose = () => {
+                console.log('WebSocket: Closed.');        
+                document.getElementById('WebSocket').textContent = "Connect"
+                wsurl_element.disabled = false
+            }
+            sock.onmessage = function(e) {
+                console.log(e.data)
+            }
+        }
+    }
+    ws_refresh()
+
+    //--------------------------------------------------
+    // Onload setups and Buttons
+    //--------------------------------------------------
+    window.onload = function () {
+        robin_init();
+        
+        document.getElementById("startNotifications").disabled = false;
+        document.getElementById("stopNotifications").disabled  = true;
+    }
+
+    document.getElementById('startNotifications').addEventListener('click', function(e) {
+        robin_open();
+    });
+
+    document.getElementById('stopNotifications').addEventListener('click', function() {
+        robin_close();
+    });
+
+    document.getElementById('MultiFunctionButton').addEventListener('click', function(e) {
+        robin_mfb();
+    });
+
+    document.getElementById('WebSocket').addEventListener('click', function(e) {
+        ws_refresh();
+    });
+</script>
+
+
+<script type="text/javascript" src="./components/chart.min.js"></script>
+<script>
+    //--------------------------------------------------
+    // Charts and PPG singnal processings
+    //--------------------------------------------------
+    var chrt_1 = document.getElementById("canvas_1").getContext("2d");
+    var chartId_1 = new Chart(chrt_1, {
+        type: 'bar',
+        data: {
+            labels: [""],
+            datasets: [{
+                data: [0],
+                backgroundColor: ['pink'],
+                borderColor: 'rgba(255, 100, 100, 1)',
+                borderWidth: 2,
+                barPercentage: 0.8,
+            }],
+        },
+        options: {
+            title: {
+                display: true,
+                text: 'Average',
+            },
+            animation: false,
+            responsive: false,
+            plugins: {
+                legend: {
+                    display: false,
+                },
+            },
+            scales: {
+                y: {
+                    max: 1500,
+                    min: 0,
+                    ticks: {
+                        stepSize: 300
+                    },
+                },
+            },
+        },
+    });
+    var chrt_2 = document.getElementById("canvas_2").getContext("2d");
+    var chartId_2 = new Chart(chrt_2, {
+        type: 'line',
+        data: {
+            labels: Array(1500).fill(""),
+            datasets: [{
+                label:["Level"],
+                data: [],
+                borderColor: 'rgba(255, 100, 100, 1)',
+                borderWidth: 2,
+                pointRadius: 0,
+            }],
+        },
+        options: {
+            title: {
+                display: true,
+                text: 'Level',
+            },
+            animation: false,
+            responsive: false,
+            plugins: {
+                legend: {
+                    display: false,
+                },
+            },
+            scales: {
+                y: {
+                    max: 1500,
+                    min: -1500,
+                    ticks: {
+                        stepSize: 300
+                    },
+                },
+            },
+        },
+    });
+
+    //--------------------------------------------------
+    var peak_hold = 0
+    let timerId = setInterval(() => {
+        while (gPPG.length > 0) {
+            tmp = gPPG.shift()
+            if (gPause == false) {
+                chartId_2.data.datasets[0].data.push(tmp);
+            }
+            if (chartId_2.data.datasets[0].data.length > 1500) {
+                chartId_2.data.datasets[0].data.shift()
+            }
+        }
+        chartId_2.update();
+
+        var tmp = 0
+        for (i=0; i<chartId_2.data.datasets[0].data.length; i++) {
+            tmp += Math.abs(chartId_2.data.datasets[0].data[i])
+        }
+        //console.log(chartId_2.data.datasets[0].data.length, tmp/chartId_2.data.datasets[0].data.length)
+        chartId_1.data.datasets[0].data[0] = tmp/chartId_2.data.datasets[0].data.length
+        chartId_1.update();
+
+    }, 10);     //10msec (minimum)
+</script>
+
+</body>
+</html>
