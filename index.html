@@ -440,6 +440,9 @@ class thumb_img {
         chartId_1.data.datasets[0].data[0] = tmp/chartId_2.data.datasets[0].data.length
         chartId_1.update();
 
+        if (chartId_2.data.datasets[0].data.length > 0) {
+            document.getElementById('status').innerHTML = "Average : " + (tmp/chartId_2.data.datasets[0].data.length).toFixed(1)
+        }
     }, 10);     //10msec (minimum)
 </script>
 
