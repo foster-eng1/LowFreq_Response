@@ -432,17 +432,30 @@ class thumb_img {
         }
         chartId_2.update();
 
-        var tmp = 0
+        var tmp_ave = 0
+        var tmp_max = 0
         for (i=0; i<chartId_2.data.datasets[0].data.length; i++) {
-            tmp += Math.abs(chartId_2.data.datasets[0].data[i])
+            var abs = Math.abs(chartId_2.data.datasets[0].data[i])
+            tmp_ave += abs
+            if (tmp_max < abs) {
+                tmp_max = abs
+            }
         }
         //console.log(chartId_2.data.datasets[0].data.length, tmp/chartId_2.data.datasets[0].data.length)
-        chartId_1.data.datasets[0].data[0] = tmp/chartId_2.data.datasets[0].data.length
+        chartId_1.data.datasets[0].data[0] = tmp_ave/chartId_2.data.datasets[0].data.length
         chartId_1.update();
 
         if (chartId_2.data.datasets[0].data.length > 0) {
-            document.getElementById('status').innerHTML = "Average : " + (tmp/chartId_2.data.datasets[0].data.length).toFixed(1)
+            document.getElementById('status').innerHTML = "Average : " + (tmp_ave/chartId_2.data.datasets[0].data.length).toFixed(1)
         }
+        if (gPause == false) {
+            chartId_2.options.scales.y.max =  1500
+            chartId_2.options.scales.y.min = -1500
+        } else {
+            chartId_2.options.scales.y.max =  tmp_max
+            chartId_2.options.scales.y.min = -tmp_max            
+        }
+
     }, 10);     //10msec (minimum)
 </script>
 
