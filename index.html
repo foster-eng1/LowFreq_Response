@@ -448,7 +448,7 @@ class thumb_img {
         if (chartId_2.data.datasets[0].data.length > 0) {
             document.getElementById('status').innerHTML = "Average : " + (tmp_ave/chartId_2.data.datasets[0].data.length).toFixed(1)
         }
-        if (gPause == false) {
+        if ((gPause == false) || (tmp_max < 1500) {
             chartId_2.options.scales.y.max =  1500
             chartId_2.options.scales.y.min = -1500
         } else {
