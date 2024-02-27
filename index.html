@@ -56,7 +56,7 @@ Released under the MIT license
     </div>
     <hr>
     <div class="footer">
-        For more information, see <a href="https://github.com/foster-eng1/LowFreq_Response" target="_blank">GitHub</a> !
+        For more information, see <a href="https://github.com/foster-hearable/PPGFrontend" target="_blank">GitHub</a> !
     </div>
 </div>
 
@@ -448,7 +448,7 @@ class thumb_img {
         if (chartId_2.data.datasets[0].data.length > 0) {
             document.getElementById('status').innerHTML = "Average : " + (tmp_ave/chartId_2.data.datasets[0].data.length).toFixed(1)
         }
-        if ((gPause == false) || (tmp_max < 1500) {
+        if ((gPause == false) || (tmp_max < 1500)) {
             chartId_2.options.scales.y.max =  1500
             chartId_2.options.scales.y.min = -1500
         } else {
